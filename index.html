@@ -42,7 +42,11 @@
   .stat .v{font-family:'Space Grotesk',monospace;font-size:22px;font-weight:700;margin-top:2px}
   .stat .v small{font-size:12px;color:var(--muted);font-weight:500}
   .insight{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:12px 15px;font-size:12.5px;margin-bottom:18px}
-  .grid-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px}
+  .grid-scroll{max-height:72vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px}
+  .grid-scroll::-webkit-scrollbar{width:13px;height:13px}
+  .grid-scroll::-webkit-scrollbar-track{background:var(--panel2);border-radius:8px}
+  .grid-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid var(--panel2)}
+  .grid-scroll::-webkit-scrollbar-thumb:hover{background:var(--muted)}
   table.grid{border-collapse:collapse;width:100%;font-family:'JetBrains Mono',monospace;font-size:11.5px;white-space:nowrap}
   .grid thead .grp th{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--panel2);padding:6px 7px;text-align:center;border-bottom:1px solid var(--line)}
   .grid thead .cols th{position:sticky;top:0;background:#11161d;color:var(--muted);font-weight:500;padding:7px 8px;text-align:center;border-bottom:1px solid var(--line);font-size:10.5px}
@@ -264,20 +268,64 @@ function project(o,so,cap,damp,rw){const p={};damp=(damp==null?0.6:damp);rw=(rw=
   p.m18090=(o.d180mat&&o.d90mat&&o.d90>0)?o.d180/o.d90:m18090;  p.d180=o.d180mat?o.d180:p.d90*m18090;
   return p;}
 
+function weekKey(wk){if(!wk)return '';const m=String(wk).match(/(\d{4}-\d{2}-\d{2})\s*[-\u2013]\s*(\d{4}-\d{2}-\d{2})/);return m?m[1]+'_'+m[2]:String(wk).trim();}
+function maturScore(o){o=o||{};return (o.d28mat?1:0)+(o.d60mat?1:0)+(o.d90mat?1:0)+(o.d180mat?1:0);}
+function dedupeHist(h){
+  const groups={};
+  for(const key of Object.keys(h||{})){
+    const e=h[key]||{};
+    const rawWk=e.wk||(key.indexOf('|')>=0?key.split('|').slice(1).join('|'):key);
+    if(!e.wk)e.wk=rawWk;
+    const nk=weekKey(rawWk)||key;
+    (groups[nk]=groups[nk]||[]).push(e);
+  }
+  const out={};
+  for(const nk of Object.keys(groups)){
+    const arr=groups[nk];
+    if(arr.length===1){out[nk]=arr[0];continue;}
+    // base = earliest firstSeen so the originally-locked projections + firstScn are preserved for predicted-vs-actual
+    const base=arr.slice().sort((a,b)=>String(a.firstSeen||'').localeCompare(String(b.firstSeen||'')))[0];
+    // freshest = most matured observation (tie-break: more revenue) -> this becomes the actuals shown/graded
+    const fresh=arr.slice().sort((a,b)=>{
+      const dm=maturScore(b.obs)-maturScore(a.obs);if(dm)return dm;
+      return (((b.obs||{}).d180||0)-((a.obs||{}).d180||0))||(((b.obs||{}).d90||0)-((a.obs||{}).d90||0));
+    })[0];
+    const merged={firstSeen:base.firstSeen,firstScn:base.firstScn,wk:base.wk||fresh.wk,
+      obs:fresh.obs,lastScn:fresh.lastScn||fresh.firstScn,pred:Object.assign({},base.pred||{})};
+    ['d28','d60','d90','d180'].forEach(f=>{if(merged.pred[f]==null){for(const e of arr){if(e.pred&&e.pred[f]!=null){merged.pred[f]=e.pred[f];break;}}}});
+    out[nk]=merged;
+  }
+  return out;
+}
+function migrateAllHist(){
+  const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('hist_')===0)keys.push(k);}
+  keys.forEach(k=>{try{const before=localStorage.getItem(k);const after=JSON.stringify(dedupeHist(JSON.parse(before||'{}')));if(after!==before)localStorage.setItem(k,after);}catch(e){}});
+}
+function stickyHeads(){
+  const sc=document.querySelector('.grid-scroll');if(!sc)return;
+  if(!stickyHeads.__r){stickyHeads.__r=1;window.addEventListener('resize',()=>requestAnimationFrame(stickyHeads));}
+  const grp=sc.querySelector('thead .grp'),cols=sc.querySelector('thead .cols');
+  const band=Array.prototype.slice.call(sc.querySelectorAll('tbody.tband tr'));
+  const pin=(tr,t,z,bg)=>{if(!tr)return 0;const cs=tr.children;for(let i=0;i<cs.length;i++){const c=cs[i];c.style.position='sticky';c.style.top=t+'px';c.style.zIndex=String(z);if(bg)c.style.background=bg;}return tr.getBoundingClientRect().height;};
+  let top=0;
+  top+=pin(grp,top,8,null);
+  top+=pin(cols,top,8,null);
+  band.forEach(tr=>{top+=pin(tr,top,6,'#20223a');});
+}
 function ingest(txt,asof){
   let rows;try{rows=parseCSV(txt);}catch(e){return false;}
-  const S=scn(),cap=d28cap(),DAMP=damp(),RW=retw(),h=hist();
+  const S=scn(),cap=d28cap(),DAMP=damp(),RW=retw(),h=dedupeHist(hist());
   rows.forEach(r=>{
-    const wk=r.Week,cid=r['Campaign ID']||'x',key=cid+'|'+wk;
+    const wk=r.Week,key=weekKey(wk)||((r['Campaign ID']||'x')+'|'+wk);
     const ed=endDate(wk),age=ed?(new Date(asof)-ed)/864e5:999,g=k=>num(r[k]);
     const o={spend:g('Spend'),d0:g('D0 total ROAS'),d1r:g('D1 retention'),d7:g('D7 total ROAS'),d7r:g('D7 retention'),
       d28:g('D28 total ROAS'),d28r:g('D28 retention'),d60:g('D60 total ROAS'),d90:g('D90 total ROAS'),d180:g('D180 total ROAS'),
       d28mat:age>=28&&g('D28 total ROAS')>0, d60mat:age>=60&&g('D60 total ROAS')>0,
       d90mat:age>=90&&g('D90 total ROAS')>0, d180mat:age>=180&&g('D180 total ROAS')>0};
     const sc=matchScn(o.d1r,o.d7r,S),so=obj(S[sc]),p=project(o,so,cap,DAMP,RW);
-    if(!h[key]) h[key]={firstSeen:asof,firstScn:sc,obs:o,
+    if(!h[key]) h[key]={firstSeen:asof,firstScn:sc,wk:wk,obs:o,
       pred:{d28:o.d28mat?null:p.d28,d60:o.d60mat?null:p.d60,d90:o.d90mat?null:p.d90,d180:o.d180mat?null:p.d180}};
-    else { h[key].obs=o; h[key].lastScn=sc;
+    else { h[key].obs=o; h[key].lastScn=sc; h[key].wk=h[key].wk||wk;
       const pr=h[key].pred||{}; if(pr.d28==null&&!o.d28mat)pr.d28=p.d28; if(pr.d60==null&&!o.d60mat)pr.d60=p.d60;
       if(pr.d90==null&&!o.d90mat)pr.d90=p.d90; if(pr.d180==null&&!o.d180mat)pr.d180=p.d180; h[key].pred=pr; }
   });
@@ -302,7 +350,7 @@ const SUGGEST={
 
 function render(){
   const S=scn(),B=parseFloat(document.getElementById('band').value)||0.5,RB=parseFloat(document.getElementById('rband').value)||0.03,cap=d28cap(),DAMP=damp(),RW=retw();
-  const h=hist(),keys=Object.keys(h).sort((a,b)=>(endDate(a.split('|')[1])||0)-(endDate(b.split('|')[1])||0));
+  const h=hist(),keys=Object.keys(h).sort((a,b)=>(endDate(h[a].wk||a)||0)-(endDate(h[b].wk||b)||0));
   const body=document.getElementById('body');body.innerHTML='';
   document.getElementById('basisTag').textContent='\u00b7 '+CAMPAIGNS[cur()].basis;
   const TB=document.getElementById('tband');if(TB){TB.innerHTML='';['S1','S2','S3'].forEach((k,ri)=>{const tso=obj(S[k]);const cs=FIELDS.map((f,i)=>`<td>${(+tso[f]).toFixed(i>=9?2:1)}</td>`).join('');TB.innerHTML+=`<tr class="tg${ri===2?' tlast':''}"><td class="wk">${k} <span class="tt">target</span></td><td>\u00b7</td><td>\u00b7</td>${cs}</tr>`;});}
@@ -310,7 +358,7 @@ function render(){
   const names=['D0','D1 Ret','D7','D7 Ret','D28','D28 Ret','D60','D90','D180','D7/D1','D28/D7r','D7/D0','D28/D7','D60/D28','D90/D60','D180/D90'];
   if(!keys.length)body.innerHTML='<tr><td colspan="19" class="empty">No data \u2014 paste or upload a CSV.</td></tr>';
   keys.forEach(key=>{
-    const e=h[key],o=e.obs,wk=key.split('|')[1];
+    const e=h[key],o=e.obs,wk=e.wk||key;
     const sc=matchScn(o.d1r,o.d7r,S),so=obj(S[sc]),p=project(o,so,cap,DAMP,RW);
     sumD180+=p.d180; if(p.d180>=so.d180)cntT++; n++; sd1+=o.d1r; sd7+=o.d7r; sd28+=p.d28;
     const C=[],add=(v,cls,dec)=>C.push({v,cls,dec:dec==null?1:dec});
@@ -359,6 +407,7 @@ function render(){
     H+=`<div class="rec-now">Currently tracking <b>${curScn}</b> (avg D1 ${aD1.toFixed(0)}%, D7 ret ${aD7.toFixed(0)}%, D28 \u2248${aD28.toFixed(1)}). `+(lift>0?`Gap to the target D28: <b>+${lift}</b>.</div>`:`Already on/above the target D28 path.</div>`);
     H+=`<div class="rec-now">Projection basis (unmatured points): the bend blends two <b>independent</b> signals \u2014 pure <b>retention</b> (D7/D1) and pure <b>monetization yield</b> (ROAS with retention divided out), so retention isn\u2019t counted twice. Retention weight ${retw()} (1 = retention leads, 0.5 = nets to your ROAS trajectory, 0 = yield leads). Forward multiples stay on your historical ratios (tapered, floored at 1.0). Scenario rows are grading targets only; D28 goal ${cap} feeds the recommended line. Decay sensitivity ${damp()}.</div>`;rb.innerHTML=H;}
   renderPVA(S);
+  requestAnimationFrame(stickyHeads);
 }
 
 function renderPVA(S){
@@ -370,7 +419,7 @@ function renderPVA(S){
       const ci=order.indexOf(f);let pi=ci-1,assumed=1,prior=null;
       while(pi>=0){assumed*=so[mults[order[pi+1]]];const pf=order[pi];if(pf==='d7'||(o[pf+'mat']&&o[pf]>0)){prior=pf;break;}pi--;}
       const realized=(prior&&o[prior]>0)?o[f]/o[prior]:null;
-      rows.push({wk:k.split('|')[1],scn:e.firstScn,cp:f.toUpperCase(),pred:pr[f],act:o[f],prior:prior?prior.toUpperCase():null,realized,assumed});});});
+      rows.push({wk:(e.wk||k),scn:e.firstScn,cp:f.toUpperCase(),pred:pr[f],act:o[f],prior:prior?prior.toUpperCase():null,realized,assumed});});});
   rows.sort((a,b)=>(endDate(a.wk)||0)-(endDate(b.wk)||0));
   if(!rows.length){div.innerHTML='<div class="empty" style="border:1px solid var(--line);border-radius:12px;background:var(--panel)">Nothing matured yet to check. When a projected checkpoint (blue) later matures and you re-import, predicted vs actual appears here \u2014 starting with D28, then D60/D90/D180 as cohorts age.</div>';return;}
   let html='<table class="pva"><tr><th>Week</th><th>Scn</th><th>Chk</th><th>Predicted</th><th>Actual</th><th>\u0394</th><th>% Err</th><th>Realized mult</th><th>Assumed</th></tr>';
@@ -519,7 +568,7 @@ document.getElementById('d28g').addEventListener('change',e=>{localStorage.setIt
 document.getElementById('dampf').addEventListener('change',e=>{localStorage.setItem('damp_'+cur(),e.target.value);render();});
 document.getElementById('rwf').addEventListener('change',e=>{localStorage.setItem('rw_'+cur(),e.target.value);render();});
 document.getElementById('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const a=document.getElementById('asof').value||new Date().toISOString().slice(0,10);if(ingest(rd.result,a))render();else alert('Could not parse file');e.target.value='';};rd.readAsText(f);});
-(async()=>{await loadConfig();refresh();})();
+(async()=>{await loadConfig();migrateAllHist();refresh();})();
 </script>
 </body>
 </html>
