@@ -119,6 +119,7 @@ td.err-good{color:#7ee787}td.err-mid{color:#e3b341}td.err-bad{color:#f06f6f}
         <div class="field"><label>As of</label><input id="asof" type="date" style="width:128px"></div>
         <button class="btn" onclick="importCSV()">Add pasted</button>
         <label class="btn ghost" style="cursor:pointer;margin-top:0">Upload CSV<input id="file" type="file" accept=".csv" style="display:none"></label>
+        <button class="btn ghost" type="button" onclick="exportCohorts()" title="Download cohorts.json with everyone's weeks. Commit it to your repo so all viewers see the same data through the link.">⬇ Export cohorts.json (share)</button>
       </div>
     </div>
     <div class="panel">
@@ -238,7 +239,7 @@ function d28cap(){const ov=localStorage.getItem('d28g_'+cur());return ov!=null?+
 function damp(){const ov=localStorage.getItem('damp_'+cur());return ov!=null?+ov:0.6;}
 function retw(){const ov=localStorage.getItem('rw_'+cur());return ov!=null?+ov:0.5;}
 const HKEY=()=>'hist_'+cur();
-function hist(){return JSON.parse(localStorage.getItem(HKEY())||'{}');}
+function hist(){return histFor(cur());}
 function saveHist(h){localStorage.setItem(HKEY(),JSON.stringify(h));}
 function clearHist(){if(confirm('Clear stored data for '+CAMPAIGNS[cur()].label+'?')){localStorage.removeItem(HKEY());refresh();}}
 function matchScn(d1r,d7r,S){let best=null,bd=1e9;for(const k of Object.keys(S)){const o=obj(S[k]);const d=Math.abs(o.d1r-d1r)*1000+Math.abs(o.d7r-d7r);if(d<bd){bd=d;best=k;}}return best;}
@@ -270,32 +271,47 @@ function project(o,so,cap,damp,rw){const p={};damp=(damp==null?0.6:damp);rw=(rw=
 
 function weekKey(wk){if(!wk)return '';const m=String(wk).match(/(\d{4}-\d{2}-\d{2})\s*[-\u2013]\s*(\d{4}-\d{2}-\d{2})/);return m?m[1]+'_'+m[2]:String(wk).trim();}
 function maturScore(o){o=o||{};return (o.d28mat?1:0)+(o.d60mat?1:0)+(o.d90mat?1:0)+(o.d180mat?1:0);}
-function dedupeHist(h){
+function mergeGroup(arr){
+  if(arr.length===1)return arr[0];
+  const base=arr.slice().sort((a,b)=>String(a.firstSeen||'').localeCompare(String(b.firstSeen||'')))[0];
+  const fresh=arr.slice().sort((a,b)=>{const dm=maturScore(b.obs)-maturScore(a.obs);if(dm)return dm;return (((b.obs||{}).d180||0)-((a.obs||{}).d180||0))||(((b.obs||{}).d90||0)-((a.obs||{}).d90||0));})[0];
+  const merged={firstSeen:base.firstSeen,firstScn:base.firstScn,wk:base.wk||fresh.wk,obs:fresh.obs,lastScn:fresh.lastScn||fresh.firstScn,pred:Object.assign({},base.pred||{})};
+  ['d28','d60','d90','d180'].forEach(f=>{if(merged.pred[f]==null){for(const e of arr){if(e.pred&&e.pred[f]!=null){merged.pred[f]=e.pred[f];break;}}}});
+  return merged;
+}
+function dedupeEntries(list){
   const groups={};
-  for(const key of Object.keys(h||{})){
-    const e=h[key]||{};
-    const rawWk=e.wk||(key.indexOf('|')>=0?key.split('|').slice(1).join('|'):key);
-    if(!e.wk)e.wk=rawWk;
-    const nk=weekKey(rawWk)||key;
-    (groups[nk]=groups[nk]||[]).push(e);
-  }
-  const out={};
-  for(const nk of Object.keys(groups)){
-    const arr=groups[nk];
-    if(arr.length===1){out[nk]=arr[0];continue;}
-    // base = earliest firstSeen so the originally-locked projections + firstScn are preserved for predicted-vs-actual
-    const base=arr.slice().sort((a,b)=>String(a.firstSeen||'').localeCompare(String(b.firstSeen||'')))[0];
-    // freshest = most matured observation (tie-break: more revenue) -> this becomes the actuals shown/graded
-    const fresh=arr.slice().sort((a,b)=>{
-      const dm=maturScore(b.obs)-maturScore(a.obs);if(dm)return dm;
-      return (((b.obs||{}).d180||0)-((a.obs||{}).d180||0))||(((b.obs||{}).d90||0)-((a.obs||{}).d90||0));
-    })[0];
-    const merged={firstSeen:base.firstSeen,firstScn:base.firstScn,wk:base.wk||fresh.wk,
-      obs:fresh.obs,lastScn:fresh.lastScn||fresh.firstScn,pred:Object.assign({},base.pred||{})};
-    ['d28','d60','d90','d180'].forEach(f=>{if(merged.pred[f]==null){for(const e of arr){if(e.pred&&e.pred[f]!=null){merged.pred[f]=e.pred[f];break;}}}});
-    out[nk]=merged;
-  }
-  return out;
+  list.forEach(e=>{if(!e)return;const nk=weekKey(e.wk||'')||('x'+(e.firstSeen||'')+JSON.stringify(e.obs||''));(groups[nk]=groups[nk]||[]).push(e);});
+  const out={};for(const nk in groups)out[nk]=mergeGroup(groups[nk]);return out;
+}
+function dedupeHist(h){
+  const list=[];
+  for(const key of Object.keys(h||{})){const e=h[key]||{};if(!e.wk)e.wk=(key.indexOf('|')>=0?key.split('|').slice(1).join('|'):key);list.push(e);}
+  return dedupeEntries(list);
+}
+let BASE={}; // shared cohort history from cohorts.json (NOT persisted per-device)
+function histFor(k){
+  const base=Object.values(BASE[k]||{});
+  const loc=Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}'));
+  return dedupeEntries(base.concat(loc));
+}
+async function loadCohorts(){
+  try{
+    const res=await fetch('cohorts.json?t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)return;
+    const cfg=await res.json();const camps=(cfg&&cfg.campaigns)||{};
+    for(const k of Object.keys(camps)){
+      const data=camps[k].weeks||camps[k];const norm={};
+      Object.keys(data||{}).forEach(key=>{const e=data[key]||{};if(!e.wk)e.wk=(key.indexOf('|')>=0?key.split('|').slice(1).join('|'):key);norm[weekKey(e.wk)||key]=e;});
+      BASE[k]=norm;
+    }
+  }catch(e){/* no cohorts.json reachable -> per-device data only */}
+}
+function exportCohorts(){
+  const out={updated:new Date().toISOString().slice(0,10),campaigns:{}};
+  for(const k of Object.keys(CAMPAIGNS))out.campaigns[k]={weeks:histFor(k)};
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cohorts.json';document.body.appendChild(a);a.click();a.remove();
 }
 function migrateAllHist(){
   const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('hist_')===0)keys.push(k);}
@@ -568,7 +584,7 @@ document.getElementById('d28g').addEventListener('change',e=>{localStorage.setIt
 document.getElementById('dampf').addEventListener('change',e=>{localStorage.setItem('damp_'+cur(),e.target.value);render();});
 document.getElementById('rwf').addEventListener('change',e=>{localStorage.setItem('rw_'+cur(),e.target.value);render();});
 document.getElementById('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const a=document.getElementById('asof').value||new Date().toISOString().slice(0,10);if(ingest(rd.result,a))render();else alert('Could not parse file');e.target.value='';};rd.readAsText(f);});
-(async()=>{await loadConfig();migrateAllHist();refresh();})();
+(async()=>{await loadConfig();await loadCohorts();migrateAllHist();refresh();})();
 </script>
 </body>
 </html>
