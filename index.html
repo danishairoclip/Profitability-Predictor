@@ -208,8 +208,8 @@ function project(o,so,cap,damp,rw){const p={};damp=(damp==null?0.6:damp);rw=(rw=
   const yieldR=(haveMon&&haveRet&&retR>0)?monR/retR:monR;
   /* geometric blend of two independent signals; rw = retention's weight (1=ret only, 0=yield only, 0.5=nets to ROAS) */
   let blend=1;if(haveRet&&haveMon)blend=Math.pow(retR,rw)*Math.pow(yieldR,1-rw);else if(haveRet)blend=retR;else if(haveMon)blend=monR;
-  let f=Math.max(0.80,Math.min(1.20,1+damp*(blend-1)));
-  p.ef=f;p.retR=retR;p.yieldR=yieldR;
+  let f=Math.max(0.80,Math.min(1.25,1+damp*(blend-1)));
+  p.retR=retR;p.yieldR=yieldR;
   /* D28 retention: power-law extrapolation of the cohort\u2019s own D1\u2192D7 decay (self-derived) */
   let dd287p=so.dd287;if(o.d1r>o.d7r&&o.d7r>0){const k=Math.log(o.d1r/o.d7r)/Math.log(7);dd287p=Math.pow(28,-k)*o.d1r/o.d7r;}
   /* plausibility guard: D28-ret maturity is gated on D28-ROAS, so a bad/immature retention cell can ride in.
@@ -218,9 +218,19 @@ function project(o,so,cap,damp,rw){const p={};damp=(damp==null?0.6:damp);rw=(rw=
   p.d28rProjected=!d28rTrust;
   p.dd287=d28rTrust?(o.d7r>0?o.d28r/o.d7r:0):dd287p;
   p.d28r=d28rTrust?o.d28r:d28rProj;
-  /* ROAS multiples: historical shape bent by THIS cohort\u2019s decay \u2014 never the raw scenario number in a projection */
-  /* bend bends each multiple by the decay factor, TAPERING toward the historical value on the far tail and never below 1.0 (ROAS is monotonic) */
-  const bend=(m,n)=>Math.max(1.0,m*Math.pow(f,Math.pow(0.25,n)));
+  /* re-anchor the bend on the cohort\u2019s OWN realized ROAS multiples once later checkpoints mature,
+     so a cohort running hot/cold carries that forward instead of snapping back to scenario ratios (weighted toward the latest step) */
+  const cl=(x)=>Math.max(0.70,Math.min(1.40,x));
+  let asum=0,aw=0;
+  if(o.d28mat&&o.d7>0&&so.m287>0){asum+=3*cl((o.d28/o.d7)/so.m287);aw+=3;}
+  if(o.d60mat&&o.d28>0&&so.m6028>0){asum+=4*cl((o.d60/o.d28)/so.m6028);aw+=4;}
+  if(o.d90mat&&o.d60>0&&so.m9060>0){asum+=5*cl((o.d90/o.d60)/so.m9060);aw+=5;}
+  if(aw>0){const fa=Math.max(0.80,Math.min(1.30,asum/aw));f=f*0.30+fa*0.70;}
+  p.ef=f;
+  /* ROAS multiples: scenario shape bent by the cohort\u2019s realized momentum. Taper is measured from the LAST MATURED checkpoint,
+     so the first projected step gets the full bend and it eases toward the scenario shape only further out; never below 1.0 (ROAS is monotonic) */
+  const lastMat=(o.d28mat?1:0)+(o.d60mat?1:0)+(o.d90mat?1:0);
+  const bend=(m,n)=>{const r=Math.max(0,n-lastMat);return Math.max(1.0,m*Math.pow(f,Math.pow(0.55,r)));};
   const m287=bend(so.m287,0),m6028=bend(so.m6028,1),m9060=bend(so.m9060,2),m18090=bend(so.m18090,3);
   p.m287=o.d28mat?(o.d7>0?o.d28/o.d7:0):m287;  p.d28=o.d28mat?o.d28:o.d7*m287;
   p.m6028=(o.d60mat&&o.d28mat&&o.d28>0)?o.d60/o.d28:m6028;  p.d60=o.d60mat?o.d60:p.d28*m6028;
