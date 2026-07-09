@@ -120,15 +120,13 @@ td.err-good{color:#7ee787}td.err-mid{color:#e3b341}td.err-bad{color:#f06f6f}
         <button class="btn" onclick="importCSV()">Add pasted</button>
         <label class="btn ghost" style="cursor:pointer;margin-top:0">Upload CSV<input id="file" type="file" accept=".csv" style="display:none"></label>
         <button class="btn ghost" type="button" onclick="exportCohorts()" title="Download cohorts.json with everyone's weeks. Commit it to your repo so all viewers see the same data through the link.">⬇ Export cohorts.json (share)</button>
+        <button class="btn ghost" type="button" id="viewToggle" onclick="toggleView()" title="Campaign view grades paid ROAS vs the organic-adjusted break-even. Blended view grades paid+organic ROAS vs the full 100 break-even — so a week that looks weak on paid can still read profitable once organic is counted.">View: Campaign</button>
       </div>
     </div>
     <div class="panel">
       <h2>Monthly target revision <span style="font-size:10px;font-weight:400;color:var(--muted)">&mdash; paste the 3 scenarios, it auto-updates</span></h2>
       <textarea id="scnPaste" spellcheck="false" placeholder="Paste 3 lines (order: D0, D1ret, D7, D7ret, D28, D28ret, D60, D90, D180)&#10;S1: 23.09, 25.0, 42.53, 11.01, 57.92, 4.31, 68.26, 73.71, 87.5&#10;S2: 18.05, 30.0, 35.76, 13.22, 52.39, 5.76, 64.04, 71.72, 87.5&#10;S3: 14.66, 35.0, 30.89, 15.42, 48.13, 7.38, 60.67, 70.08, 87.5"></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" type="button" onclick="loadScenarioValues()">Load scenarios</button><button class="btn ghost" type="button" onclick="resetScenarios()">Reset to original</button><button class="btn" type="button" onclick="exportConfig()" title="Download a config.json reflecting the current scenarios &amp; knobs — commit it to your repo to push fresh ratios to every device">⬇ Export config.json</button></div>
-      <div class="subtle">or fine-tune the underlying ratios &amp; rebuild from break-even:</div>
-      <table id="ratioTable"></table>
-      <div class="row" style="margin-top:6px"><button class="btn ghost" type="button" onclick="rebuildScenarios()">Rebuild from ratios</button></div>
       <div id="beNote"></div>
     </div>
   </div>
@@ -189,6 +187,10 @@ const cur=()=>document.getElementById('campaign').value;
 const goal=()=>document.getElementById('goal').value;
 function beSet(){return JSON.parse(localStorage.getItem('cfg_'+cur()+'_be')||'null')||CAMPAIGNS[cur()].be;}
 function scn(){const be=beSet();if(goal()==='be')return be;const c=CAMPAIGNS[cur()],k=c.d180.nf/c.d180.be,nf={};for(const s of Object.keys(be))nf[s]=be[s].map((v,i)=>i<9&&i!==1&&i!==3&&i!==5?+(v*k).toFixed(2):v);return nf;}
+let VIEW='campaign'; // 'campaign' = paid ROAS vs organic-adjusted BE; 'blended' = paid+organic vs 100
+function toggleView(){VIEW=(VIEW==='blended'?'campaign':'blended');const b=document.getElementById('viewToggle');if(b)b.textContent='View: '+(VIEW==='blended'?'Blended (+organic)':'Campaign');render();}
+/* blended target = campaign scenario with ROAS levels rescaled so D180 = 100 (retention targets & all ratios unchanged) */
+function scnBlended(){const base=scn(),c=CAMPAIGNS[cur()],k=100/c.d180.be,out={},L=[0,2,4,6,7,8];for(const s of Object.keys(base))out[s]=base[s].map((v,i)=>L.indexOf(i)>=0?+(v*k).toFixed(2):v);return out;}
 function saveScn(s){localStorage.setItem('cfg_'+cur()+'_be',JSON.stringify(s));}
 function d28cap(){const ov=localStorage.getItem('d28g_'+cur());return ov!=null?+ov:CAMPAIGNS[cur()].d28goal;}
 function damp(){const ov=localStorage.getItem('damp_'+cur());return ov!=null?+ov:0.6;}
@@ -336,17 +338,30 @@ const SUGGEST={
 };
 
 function render(){
-  const S=scn(),B=parseFloat(document.getElementById('band').value)||0.5,RB=parseFloat(document.getElementById('rband').value)||0.03,cap=d28cap(),DAMP=damp(),RW=retw();
+  const blended=(VIEW==='blended');
+  const S=blended?scnBlended():scn(),B=parseFloat(document.getElementById('band').value)||0.5,RB=parseFloat(document.getElementById('rband').value)||0.03,cap=d28cap(),DAMP=damp(),RW=retw();
   const h=hist(),keys=Object.keys(h).sort((a,b)=>(endDate(h[a].wk||a)||0)-(endDate(h[b].wk||b)||0));
   const body=document.getElementById('body');body.innerHTML='';
-  document.getElementById('basisTag').textContent='\u00b7 '+CAMPAIGNS[cur()].basis;
+  document.getElementById('basisTag').textContent='\u00b7 '+(blended?'BLENDED (paid + organic) vs 100 break-even':CAMPAIGNS[cur()].basis);
   const TB=document.getElementById('tband');if(TB){TB.innerHTML='';['S1','S2','S3'].forEach((k,ri)=>{const tso=obj(S[k]);const cs=FIELDS.map((f,i)=>`<td>${(+tso[f]).toFixed(i>=9?2:1)}</td>`).join('');TB.innerHTML+=`<tr class="tg${ri===2?' tlast':''}"><td class="wk">${k} <span class="tt">target</span></td><td>\u00b7</td><td>\u00b7</td>${cs}</tr>`;});}
   let sumD180=0,cntT=0,n=0,sd1=0,sd7=0,sd28=0;const redC={};
   const names=['D0','D1 Ret','D7','D7 Ret','D28','D28 Ret','D60','D90','D180','D7/D1','D28/D7r','D7/D0','D28/D7','D60/D28','D90/D60','D180/D90'];
   if(!keys.length)body.innerHTML='<tr><td colspan="19" class="empty">No data \u2014 paste or upload a CSV.</td></tr>';
   keys.forEach(key=>{
-    const e=h[key],o=e.obs,wk=e.wk||key;
+    const e=h[key],o=blended?e.obsBlended:e.obs,wk=e.wk||key;
+    if(!o)return;
     const sc=matchScn(o.d1r,o.d7r,S),so=obj(S[sc]),p=project(o,so,cap,DAMP,RW);
+    if(blended&&e.obs){
+      /* organic revenue can never make a cohort worse than paid-only: ride the campaign maturation curve,
+         scaled by the organic uplift observed at the deepest commonly-matured checkpoint */
+      const oC=e.obs,SC=scn(),soC=obj(SC[matchScn(oC.d1r,oC.d7r,SC)]),pC=project(oC,soC,cap,DAMP,RW);
+      let bl=o.d7,cm=oC.d7;
+      if(o.d28mat&&oC.d28mat&&oC.d28>0){bl=o.d28;cm=oC.d28;}
+      if(o.d60mat&&oC.d60mat&&oC.d60>0){bl=o.d60;cm=oC.d60;}
+      if(o.d90mat&&oC.d90mat&&oC.d90>0){bl=o.d90;cm=oC.d90;}
+      const up=(cm>0?bl/cm:1);
+      ['d28','d60','d90','d180'].forEach(x=>{if(!o[x+'mat'])p[x]=Math.max(p[x],pC[x]*up);});
+    }
     sumD180+=p.d180; if(p.d180>=so.d180)cntT++; n++; sd1+=o.d1r; sd7+=o.d7r; sd28+=p.d28;
     const C=[],add=(v,cls,dec)=>C.push({v,cls,dec:dec==null?1:dec});
     add(o.d0,band(o.d0,so.d0,B));add(o.d1r,band(o.d1r,so.d1r,B));add(o.d7,band(o.d7,so.d7,B));add(o.d7r,band(o.d7r,so.d7r,B));
@@ -365,6 +380,7 @@ function render(){
       C.map((c,i)=>{const t=+so[FIELDS[i]],d=(i>=9?2:1);const ttl=c.cls==='b'?`${names[i]} \u00b7 projected \u00b7 ${sc} target ${t.toFixed(d)}`:`${names[i]} \u00b7 ${sc} target ${t.toFixed(d)} \u00b7 \u0394 ${(c.v-t>=0?'+':'')}${(c.v-t).toFixed(d)}`;return `<td class="${c.cls}" title="${ttl}">${isFinite(c.v)?c.v.toFixed(c.dec):'\u2013'}</td>`;}).join('');
     body.appendChild(tr);
   });
+  if(blended&&!body.children.length&&keys.length)body.innerHTML='<tr><td colspan="19" class="empty">No organic-inclusive data loaded yet \u2014 paste the total CSV (paid + organic) and this view grades it against the 100 break-even line.</td></tr>';
   const tgt=obj(S.S1).d180, s2=obj(S.S2);
   const ceil=cap*s2.m6028*s2.m9060*s2.m18090;
   const hr=n?Math.round(cntT/n*100):0;
