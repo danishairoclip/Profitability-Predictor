@@ -124,7 +124,7 @@ td.err-good{color:#7ee787}td.err-mid{color:#e3b341}td.err-bad{color:#f06f6f}
     </div>
     <div class="panel">
       <h2>Monthly target revision <span style="font-size:10px;font-weight:400;color:var(--muted)">&mdash; paste the 3 scenarios, it auto-updates</span></h2>
-      <textarea id="scnPaste" spellcheck="false" placeholder="Paste 3 lines (order: D0, D1ret, D7, D7ret, D28, D28ret, D60, D90, D180)&#10;S1: 18.4, 30, 35.8, 14.4, 53.3, 6.6, 66.2, 74.1, 88.9&#10;S2: 14.9, 35, 30.6, 16.4, 49.6, 9.1, 64.5, 72.9, 88.9&#10;S3: 12.4, 40, 27.1, 19.6, 46.6, 11.8, 62.4, 71.1, 88.9"></textarea>
+      <textarea id="scnPaste" spellcheck="false" placeholder="Paste 3 lines (order: D0, D1ret, D7, D7ret, D28, D28ret, D60, D90, D180)&#10;S1: 23.09, 25.0, 42.53, 11.01, 57.92, 4.31, 68.26, 73.71, 87.5&#10;S2: 18.05, 30.0, 35.76, 13.22, 52.39, 5.76, 64.04, 71.72, 87.5&#10;S3: 14.66, 35.0, 30.89, 15.42, 48.13, 7.38, 60.67, 70.08, 87.5"></textarea>
       <div class="row" style="margin-top:6px"><button class="btn" type="button" onclick="loadScenarioValues()">Load scenarios</button><button class="btn ghost" type="button" onclick="resetScenarios()">Reset to original</button><button class="btn" type="button" onclick="exportConfig()" title="Download a config.json reflecting the current scenarios &amp; knobs — commit it to your repo to push fresh ratios to every device">⬇ Export config.json</button></div>
       <div class="subtle">or fine-tune the underlying ratios &amp; rebuild from break-even:</div>
       <table id="ratioTable"></table>
@@ -162,68 +162,23 @@ td.err-good{color:#7ee787}td.err-mid{color:#e3b341}td.err-bad{color:#f06f6f}
 const FIELDS=['d0','d1r','d7','d7r','d28','d28r','d60','d90','d180','dd71','dd287','m70','m287','m6028','m9060','m18090'];
 const FLABEL=['D0','D1r','D7','D7r','D28','D28r','D60','D90','D180','D7/D1','D28/D7','D7/D0','D28/D7','D60/D28','D90/D60','D180/D90'];
 const CAMPAIGNS={
- TH_IOS:{label:'TH_IOS_APPLOVIN',basis:'campaign \u2014 organic accounted (D180 BE 88.9)',d180:{be:88.9,nf:80.0},d28goal:45,
-   be:{S1:[18.5,30,35.8,14.4,53.3,6.6,66.1,74.0,88.9, .48,.46,1.94,1.49,1.24,1.12,1.20],
-       S2:[14.9,35,30.6,16.5,49.6,9.1,64.5,72.9,88.9, .47,.55,2.05,1.62,1.30,1.13,1.22],
-       S3:[12.4,40,27.1,19.4,46.6,11.7,62.5,71.1,88.9, .49,.60,2.19,1.72,1.34,1.14,1.25]}},
- JS_IOS:{label:'JS_IOS_APPLOVIN',basis:'campaign \u2014 organic accounted (D180 BE 89.3)',d180:{be:89.3,nf:80.4},d28goal:45,
-   be:{S1:[17.1,30,33.4,13.5,50.1,6.3,63.6,71.9,89.3, .45,.47,1.95,1.50,1.27,1.13,1.24],
-       S2:[15.7,35,31.4,16.5,48.8,8.1,62.9,71.7,89.3, .47,.49,2.00,1.55,1.29,1.14,1.25],
-       S3:[14.2,40,29.1,19.6,47.1,10.0,61.8,71.1,89.3, .49,.51,2.05,1.62,1.31,1.15,1.26]}},
- TH_AND:{label:'TH_ANDROID_APPLOVIN',basis:'paid \u2014 organic 5% (D180 BE 95.2)',d180:{be:95.2,nf:85.7},d28goal:50.8,
-   be:{S1:[31.4,25,50.9,11.0,71.1,4.8,83.2,89.0,95.2, .44,.44,1.62,1.40,1.17,1.07,1.07],
-       S2:[27.7,30,46.5,14.1,69.9,6.5,80.9,87.3,95.2, .47,.46,1.68,1.50,1.16,1.08,1.09],
-       S3:[23.4,35,40.3,17.5,62.4,8.6,77.3,85.0,95.2, .50,.49,1.72,1.55,1.24,1.10,1.12]}},
- JS_AND:{label:'JS_ANDROID_APPLOVIN',basis:'paid \u2014 organic 3% (D180 BE 97.1)',d180:{be:97.1,nf:87.4},d28goal:50,
-   be:{S1:[28.1,28,45.2,12.6,66.8,5.9,79.5,86.4,97.1, .45,.47,1.61,1.48,1.19,1.09,1.12],
-       S2:[24.0,33,41.0,15.5,63.8,7.4,77.3,85.0,97.1, .47,.48,1.71,1.56,1.21,1.10,1.14],
-       S3:[19.6,38,35.4,18.6,58.8,9.1,74.2,83.0,97.1, .49,.49,1.81,1.66,1.26,1.12,1.17]}}
+ TH_IOS:{label:"TH_IOS_BLD",basis:"campaign level \u2014 retention-driven to D180 BE 87.5 (organic 12.5%)",d180:{be:87.5,nf:78.8},d28goal:52.4,
+   be:{S1:[23.09,25.0,42.53,11.01,57.92,4.31,68.26,73.71,87.5,0.44,0.39,1.84,1.36,1.18,1.08,1.19],
+       S2:[18.05,30.0,35.76,13.22,52.39,5.76,64.04,71.72,87.5,0.44,0.44,1.98,1.47,1.22,1.12,1.22],
+       S3:[14.66,35.0,30.89,15.42,48.13,7.38,60.67,70.08,87.5,0.44,0.48,2.11,1.56,1.26,1.16,1.25]}},
+ JS_IOS:{label:"JS_IOS_AD",basis:"campaign level \u2014 retention-driven to D180 BE 88 (organic 12%)",d180:{be:88.0,nf:79.2},d28goal:55.7,
+   be:{S1:[23.65,25.0,44.29,11.04,61.55,4.34,72.26,76.64,88.0,0.44,0.39,1.87,1.39,1.17,1.06,1.15],
+       S2:[18.49,30.0,37.24,13.25,55.68,5.81,67.8,74.58,88.0,0.44,0.44,2.01,1.5,1.22,1.1,1.18],
+       S3:[15.01,35.0,32.17,15.46,51.15,7.44,64.24,72.87,88.0,0.44,0.48,2.14,1.59,1.26,1.13,1.21]}},
+ JS_AND:{label:"JS_ANDROID_AD",basis:"campaign level \u2014 retention-driven to D180 BE 97 (organic 3%)",d180:{be:97.0,nf:87.3},d28goal:59.9,
+   be:{S1:[29.99,20.0,52.39,8.55,67.76,3.02,76.76,82.21,97.0,0.43,0.35,1.75,1.29,1.13,1.07,1.18],
+       S2:[22.19,25.0,42.38,10.69,59.94,4.32,70.99,79.51,97.0,0.43,0.4,1.91,1.41,1.18,1.12,1.22],
+       S3:[17.35,30.0,35.64,12.83,54.22,5.79,66.6,77.36,97.0,0.43,0.45,2.05,1.52,1.23,1.16,1.25]}}
 };
 function deriveNf(c){const k=c.d180.nf/c.d180.be;c.nf={};for(const s of Object.keys(c.be))c.nf[s]=c.be[s].map((v,i)=> i<9&&i!==1&&i!==3&&i!==5?+(v*k).toFixed(2):v);}
 for(const c of Object.values(CAMPAIGNS))deriveNf(c);
 function loadCustom(){const cc=JSON.parse(localStorage.getItem('customCampaigns')||'{}');for(const[k,c]of Object.entries(cc)){CAMPAIGNS[k]=c;deriveNf(c);}}
-const SEEDS={TH_IOS:`Week,Campaign ID,Campaign name,Spend,D1 retention,D7 retention,D28 retention,D0 total ROAS,D1 total ROAS,D7 total ROAS,D28 total ROAS,D90 total ROAS,D180 total ROAS
-"2026-06-01 - 2026-06-07","2007289","TH_iOS_BLD_D28RoAS_V2","$29,932.23","36.9%","13%","0%","15.76%","20.04%","34.83%","40.27%","40.27%","40.27%"
-"2026-05-25 - 2026-05-31","2007289","TH_iOS_BLD_D28RoAS_V2","$34,653.42","33.4%","12.2%","0%","16.52%","20.13%","30.05%","37.84%","37.84%","37.84%"
-"2026-05-18 - 2026-05-24","2007289","TH_iOS_BLD_D28RoAS_V2","$27,422.25","35%","11.9%","1.4%","19.47%","23.93%","35.53%","47.61%","47.61%","47.61%"
-"2026-05-11 - 2026-05-17","2007289","TH_iOS_BLD_D28RoAS_V2","$17,175.56","32.3%","11.3%","3.9%","19.67%","22.82%","31.7%","41.18%","41.75%","41.75%"
-"2026-05-11 - 2026-05-17","1764064","TH_iOS_BLD_D28RoAS","$8,784.35","27.9%","10.1%","3.2%","15.61%","18.83%","32.85%","44.38%","46.71%","46.71%"
-"2026-05-04 - 2026-05-10","1764064","TH_iOS_BLD_D28RoAS","$40,028.04","27.2%","11.1%","3.9%","13.06%","15.86%","23.33%","31.32%","34.01%","34.01%"
-"2026-04-27 - 2026-05-03","1764064","TH_iOS_BLD_D28RoAS","$53,872.05","32.7%","13.4%","6%","12.63%","15.36%","24.36%","36%","41.54%","41.54%"
-"2026-04-20 - 2026-04-26","1764064","TH_iOS_BLD_D28RoAS","$39,253.38","34.6%","13.2%","6.5%","15.65%","18.65%","29.01%","44.13%","52.78%","52.78%"
-"2026-04-13 - 2026-04-19","1764064","TH_iOS_BLD_D28RoAS","$41,718.37","37.6%","14.6%","7.1%","13.09%","15.95%","26.14%","42.84%","51.86%","51.86%"
-"2026-04-06 - 2026-04-12","1764064","TH_iOS_BLD_D28RoAS","$52,751.16","40.3%","16.3%","8.8%","14.4%","17.84%","30.5%","49.68%","64.3%","64.3%"
-"2026-03-30 - 2026-04-05","1764064","TH_iOS_BLD_D28RoAS","$60,158.52","37.7%","15.1%","7.9%","14.6%","18.18%","29.52%","45.65%","62.49%","62.49%"`,JS_IOS:`Week,Campaign ID,Campaign name,Spend,D1 retention,D7 retention,D28 retention,D0 total ROAS,D1 total ROAS,D7 total ROAS,D28 total ROAS,D90 total ROAS,D180 total ROAS
-"2026-06-01 - 2026-06-07","1832081","JS_iOS_AdRoAS_D28","$18,719.74","39.4%","13.2%","0%","14.03%","18.02%","29.73%","33.5%","33.5%","33.5%"
-"2026-05-25 - 2026-05-31","1832081","JS_iOS_AdRoAS_D28","$23,804.78","35.9%","13%","0%","14.9%","19.46%","30.96%","39.21%","39.21%","39.21%"
-"2026-05-18 - 2026-05-24","1832081","JS_iOS_AdRoAS_D28","$27,230.81","34.6%","13.2%","1.4%","14.46%","18.46%","29.07%","40.76%","40.76%","40.76%"
-"2026-05-11 - 2026-05-17","1832081","JS_iOS_AdRoAS_D28","$27,790.77","31.4%","11.7%","5.2%","17.95%","21.62%","31.84%","44.24%","45.46%","45.46%"
-"2026-05-04 - 2026-05-10","1832081","JS_iOS_AdRoAS_D28","$29,950.35","33.9%","14.4%","7%","15.04%","18.66%","29.9%","46.41%","51.35%","51.35%"
-"2026-04-27 - 2026-05-03","1832081","JS_iOS_AdRoAS_D28","$31,117.06","36.7%","14.3%","7%","13.81%","16.84%","26.32%","39.38%","44.25%","44.25%"
-"2026-04-20 - 2026-04-26","1832081","JS_iOS_AdRoAS_D28","$23,984.65","41%","16.9%","7.5%","12.06%","15.05%","23.45%","36.49%","43.66%","43.66%"
-"2026-04-13 - 2026-04-19","1832081","JS_iOS_AdRoAS_D28","$14,730.88","42.9%","16.1%","8.2%","16.85%","19.72%","30.23%","45.11%","54.63%","54.63%"
-"2026-04-06 - 2026-04-12","1832081","JS_iOS_AdRoAS_D28","$8,905.90","40.4%","15.2%","6.7%","16.44%","20.27%","31.99%","46.31%","54.69%","54.69%"
-"2026-03-30 - 2026-04-05","1832081","JS_iOS_AdRoAS_D28","$12,306.83","41.9%","16.9%","7.9%","15%","18.01%","26.24%","40.6%","55.5%","55.5%"`,TH_AND:`Week,Campaign ID,Campaign name,Spend,D1 retention,D7 retention,D28 retention,D0 total ROAS,D1 total ROAS,D7 total ROAS,D28 total ROAS,D90 total ROAS,D180 total ROAS
-"2026-06-01 - 2026-06-07","1639398","TapHexa_Android_D28_AdROAS","$6,003.85","31.5%","10.2%","0%","31.75%","36.08%","43.54%","44.66%","44.66%","44.66%"
-"2026-05-25 - 2026-05-31","1639398","TapHexa_Android_D28_AdROAS","$11,180.57","24%","6.7%","0%","29.26%","33.14%","44.04%","50.05%","50.05%","50.05%"
-"2026-05-18 - 2026-05-24","1639398","TapHexa_Android_D28_AdROAS","$19,307.15","23.7%","7.2%","0.4%","28.21%","32.93%","44.43%","53.82%","53.82%","53.82%"
-"2026-05-11 - 2026-05-17","1639398","TapHexa_Android_D28_AdROAS","$20,288.72","24%","7.1%","2.6%","28.07%","32.03%","40.56%","48.34%","49.38%","49.38%"
-"2026-05-04 - 2026-05-10","1639398","TapHexa_Android_D28_AdROAS","$23,787.30","27.5%","8.4%","2.8%","26.81%","30.69%","39.67%","48.56%","50.29%","50.29%"
-"2026-04-27 - 2026-05-03","1639398","TapHexa_Android_D28_AdROAS","$22,535.73","30.4%","10.2%","4%","24.21%","28.19%","39.86%","53.18%","57.94%","57.94%"
-"2026-04-20 - 2026-04-26","1639398","TapHexa_Android_D28_AdROAS","$21,988.70","32.8%","11.2%","4.7%","23.72%","27.8%","37.41%","50.95%","57%","57%"
-"2026-04-13 - 2026-04-19","1639398","TapHexa_Android_D28_AdROAS","$17,433.44","32.4%","11.5%","5.1%","22.78%","26.98%","39.41%","53.55%","63.49%","63.49%"
-"2026-04-06 - 2026-04-12","1639398","TapHexa_Android_D28_AdROAS","$15,681.41","30%","9.2%","4.1%","23.71%","27.68%","37.59%","49.14%","57.35%","57.35%"
-"2026-03-30 - 2026-04-05","1639398","TapHexa_Android_D28_AdROAS","$25,221.40","30.8%","9.9%","4.5%","20.91%","24.67%","35.38%","49.22%","60.18%","60.18%"`,JS_AND:`Week,Campaign ID,Campaign name,Spend,D1 retention,D7 retention,D28 retention,D0 total ROAS,D1 total ROAS,D7 total ROAS,D28 total ROAS,D90 total ROAS,D180 total ROAS
-"2026-06-01 - 2026-06-07","1776907","JS_Android_AdRoAS_D28","$24,734.79","30.2%","12%","0%","17.29%","21.97%","33.85%","38.06%","38.06%","38.06%"
-"2026-05-25 - 2026-05-31","1776907","JS_Android_AdRoAS_D28","$29,190.23","28.5%","11.3%","0%","17.75%","22.12%","34.67%","44.12%","44.12%","44.12%"
-"2026-05-18 - 2026-05-24","1776907","JS_Android_AdRoAS_D28","$30,950.14","27.8%","11%","0.9%","17.33%","21.32%","32.86%","46.1%","46.1%","46.1%"
-"2026-05-11 - 2026-05-17","1776907","JS_Android_AdRoAS_D28","$30,357.07","26.9%","10%","4.1%","20.24%","24.7%","35.89%","48.09%","49.29%","49.29%"
-"2026-05-04 - 2026-05-10","1776907","JS_Android_AdRoAS_D28","$25,588.90","30%","11.5%","5.1%","19.25%","22.66%","34.03%","48.13%","52.39%","52.39%"
-"2026-04-27 - 2026-05-03","1776907","JS_Android_AdRoAS_D28","$15,278.30","30.2%","9.8%","4.1%","23.5%","27.74%","39.37%","53.93%","58.58%","58.58%"
-"2026-04-20 - 2026-04-26","1776907","JS_Android_AdRoAS_D28","$30,069.52","32.2%","10.5%","4.4%","19.83%","23.8%","34.32%","47.46%","54.3%","54.3%"
-"2026-04-13 - 2026-04-19","1776907","JS_Android_AdRoAS_D28","$33,545.10","34%","12.6%","5.7%","18.77%","22.9%","34.24%","49.31%","59.57%","59.57%"
-"2026-04-06 - 2026-04-12","1776907","JS_Android_AdRoAS_D28","$30,582.46","33.6%","12.2%","5.3%","20.28%","24.41%","36.74%","51.92%","63.02%","63.02%"
-"2026-03-30 - 2026-04-05","1776907","JS_Android_AdRoAS_D28","$32,607.18","33.2%","11.3%","4.6%","17.81%","21.91%","33.82%","49.74%","61.75%","61.75%"`};
+const SEEDS={}; // seed demo data removed — cohorts.json (from Adjust exports) is the sole data source
 const num=s=>{if(s==null)return NaN;const v=parseFloat(String(s).replace(/[$,%"\s]/g,''));return isNaN(v)?NaN:v;};
 function parseCSV(t){const rows=t.trim().split(/\r?\n/).map(l=>{const o=[];let c='',q=false;for(const ch of l){if(ch==='"')q=!q;else if(ch===','&&!q){o.push(c);c='';}else c+=ch;}o.push(c);return o;});
   const h=rows.shift().map(x=>x.trim());return rows.filter(r=>r.length>1).map(r=>{const o={};h.forEach((x,i)=>o[x]=r[i]);return o;});}
@@ -257,8 +212,12 @@ function project(o,so,cap,damp,rw){const p={};damp=(damp==null?0.6:damp);rw=(rw=
   p.ef=f;p.retR=retR;p.yieldR=yieldR;
   /* D28 retention: power-law extrapolation of the cohort\u2019s own D1\u2192D7 decay (self-derived) */
   let dd287p=so.dd287;if(o.d1r>o.d7r&&o.d7r>0){const k=Math.log(o.d1r/o.d7r)/Math.log(7);dd287p=Math.pow(28,-k)*o.d1r/o.d7r;}
-  p.dd287=o.d28mat?(o.d7r>0?o.d28r/o.d7r:0):dd287p;
-  p.d28r=o.d28mat?o.d28r:o.d7r*dd287p;
+  /* plausibility guard: D28-ret maturity is gated on D28-ROAS, so a bad/immature retention cell can ride in.
+     Reject an observed D28 ret that sits far below the cohort\u2019s own power-law projection and fall back to the projection (shown blue). */
+  const d28rProj=o.d7r*dd287p, d28rTrust=o.d28mat&&o.d28r>0&&o.d28r>=0.45*d28rProj;
+  p.d28rProjected=!d28rTrust;
+  p.dd287=d28rTrust?(o.d7r>0?o.d28r/o.d7r:0):dd287p;
+  p.d28r=d28rTrust?o.d28r:d28rProj;
   /* ROAS multiples: historical shape bent by THIS cohort\u2019s decay \u2014 never the raw scenario number in a projection */
   /* bend bends each multiple by the decay factor, TAPERING toward the historical value on the far tail and never below 1.0 (ROAS is monotonic) */
   const bend=(m,n)=>Math.max(1.0,m*Math.pow(f,Math.pow(0.25,n)));
@@ -291,9 +250,11 @@ function dedupeHist(h){
 }
 let BASE={}; // shared cohort history from cohorts.json (NOT persisted per-device)
 function histFor(k){
-  const base=Object.values(BASE[k]||{});
-  const loc=Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}'));
-  return dedupeEntries(base.concat(loc));
+  /* committed cohorts.json (shared) is authoritative: for any week it contains, its copy wins.
+     localStorage only supplements weeks NOT in the shared file, so stale per-device data can't mask fresh committed data. */
+  const baseD=dedupeEntries(Object.values(BASE[k]||{}));
+  const locD=dedupeEntries(Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}')));
+  return Object.assign({},locD,baseD);
 }
 async function loadCohorts(){
   try{
@@ -379,10 +340,10 @@ function render(){
     sumD180+=p.d180; if(p.d180>=so.d180)cntT++; n++; sd1+=o.d1r; sd7+=o.d7r; sd28+=p.d28;
     const C=[],add=(v,cls,dec)=>C.push({v,cls,dec:dec==null?1:dec});
     add(o.d0,band(o.d0,so.d0,B));add(o.d1r,band(o.d1r,so.d1r,B));add(o.d7,band(o.d7,so.d7,B));add(o.d7r,band(o.d7r,so.d7r,B));
-    add(p.d28,o.d28mat?band(o.d28,so.d28,B):'b');add(p.d28r,o.d28mat?band(o.d28r,so.d28r,B):'b');
+    add(p.d28,o.d28mat?band(o.d28,so.d28,B):'b');add(p.d28r,(o.d28mat&&!p.d28rProjected)?band(p.d28r,so.d28r,B):'b');
     add(p.d60,o.d60mat?band(o.d60,so.d60,B):'b');add(p.d90,o.d90mat?band(o.d90,so.d90,B):'b');add(p.d180,o.d180mat?band(o.d180,so.d180,B):'b');
     add(o.d7r/o.d1r,band(o.d7r/o.d1r,so.dd71,RB),2);
-    add(p.dd287,o.d28mat?band(o.d28r/o.d7r,so.dd287,RB):'b',2);
+    add(p.dd287,(o.d28mat&&!p.d28rProjected)?band(p.dd287,so.dd287,RB):'b',2);
     add(o.d7/o.d0,band(o.d7/o.d0,so.m70,RB),2);
     add(p.m287,o.d28mat?band(o.d28/o.d7,so.m287,RB):'b',2);
     add(p.m6028,(o.d60mat&&o.d28mat)?band(o.d60/o.d28,so.m6028,RB):'b',2);
@@ -584,6 +545,8 @@ document.getElementById('d28g').addEventListener('change',e=>{localStorage.setIt
 document.getElementById('dampf').addEventListener('change',e=>{localStorage.setItem('damp_'+cur(),e.target.value);render();});
 document.getElementById('rwf').addEventListener('change',e=>{localStorage.setItem('rw_'+cur(),e.target.value);render();});
 document.getElementById('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const a=document.getElementById('asof').value||new Date().toISOString().slice(0,10);if(ingest(rd.result,a))render();else alert('Could not parse file');e.target.value='';};rd.readAsText(f);});
+const PP_BUILD='2026-07-09c';
+(function(){try{if(localStorage.getItem('__pp_build')!==PP_BUILD){const kill=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&/^(cfg_|hist_|d28g_|damp_|rw_|customCampaigns|lastReviewed)/.test(k))kill.push(k);}kill.forEach(k=>localStorage.removeItem(k));localStorage.setItem('__pp_build',PP_BUILD);}}catch(e){}})();
 (async()=>{await loadConfig();await loadCohorts();migrateAllHist();refresh();})();
 </script>
 </body>
