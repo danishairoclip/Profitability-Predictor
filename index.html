@@ -51,7 +51,12 @@ textarea{width:100%;min-height:150px;resize:vertical;line-height:1.5}
 .rec .small{color:var(--muted);font-size:12.5px}
 .rec b{color:#fff}
 .tablecard{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.scroll{overflow-x:auto;overflow-y:visible}
+.scroll{overflow:auto;max-height:none}
+.gridscroll{overflow:auto;max-height:470px}
+.gridscroll::-webkit-scrollbar{width:10px;height:10px}.gridscroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+#grid thead .grp th{position:sticky;top:0;background:var(--panel);z-index:4}
+#grid thead tr:not(.grp) th{position:sticky;top:26px;background:var(--panel);z-index:4}
+#grid thead .stick,#grid thead .stick2{z-index:6}
 table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12.5px}
 thead .grp th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:10px 0 4px;border-bottom:1px solid var(--line)}
 th,td{padding:9px 12px;text-align:right;white-space:nowrap}
@@ -135,7 +140,7 @@ td.b sup{font-style:normal;font-size:8px;opacity:.7}
 <div id="recWrap"></div>
 
 <div class="tablecard">
-  <div class="scroll">
+  <div class="gridscroll" id="gridscroll">
     <table id="grid"><thead id="ghead"></thead><tbody id="body"></tbody></table>
   </div>
   <div class="legend">
@@ -153,6 +158,12 @@ td.b sup{font-style:normal;font-size:8px;opacity:.7}
   <h3>Predicted vs Actual — does the projection hold once cohorts mature?</h3>
   <p class="note">Every retained prediction that has matured, newest first — <span id="pvaCount"></span>. Realized multiples here feed forward into future projections (calibration).</p>
   <div class="pvascroll"><table class="pvatable" id="pva"></table></div>
+</div>
+
+<div class="pva card" style="margin-top:16px">
+  <h3>Prediction accuracy by cohort — how far off is each one?</h3>
+  <p class="note">Average gap between our prediction and the matured actual across D28 / D60 / D90 / D180. <b style="color:var(--g)">Green</b> = the cohort beat our prediction (we under-predicted), <b style="color:var(--r)">red</b> = it fell short (we over-predicted), yellow = on the mark. Overall: <span id="accOverall"></span></p>
+  <div class="pvascroll" style="max-height:none"><table class="pvatable" id="accuracy"></table></div>
 </div>
 </div>
 
@@ -4335,8 +4346,9 @@ function scn(){const be=beSet();if(goal()==='be')return be;const c=CAMPAIGNS[cur
 function scnBlended(){const b=scn(),c=CAMPAIGNS[cur()],k=100/c.d180.be,L=[0,2,4,6,7,8],out={};for(const s in b)out[s]=b[s].map((v,i)=>L.indexOf(i)>=0?+(v*k).toFixed(2):v);return out;}
 
 /* ==== views ==== */
-let VIEW='applovin';const VIEWS=['applovin','adjust','blended'],VLAB={applovin:'AppLovin paid',adjust:'Adjust paid',blended:'Adjust paid+organic'};
-function toggleView(){VIEW=VIEWS[(VIEWS.indexOf(VIEW)+1)%VIEWS.length];$('viewToggle').textContent='View: '+VLAB[VIEW];render();}
+let VIEW='applovin';const VIEWS=['applovin','blended'],VLAB={applovin:'AppLovin paid',blended:'Adjust paid+organic'};
+let jumpNewest=true;
+function toggleView(){VIEW=VIEWS[(VIEWS.indexOf(VIEW)+1)%VIEWS.length];$('viewToggle').textContent='View: '+VLAB[VIEW];jumpNewest=true;render();}
 
 /* ==== columns: retention grouped first, then ROAS, then decay+multiples ==== */
 const RET=[['d1r','D1 Ret'],['d7r','D7 Ret'],['d28r','D28 Ret']];
@@ -4348,11 +4360,15 @@ function buildHead(){
   const gh=$('ghead');
   gh.innerHTML=
    '<tr class="grp"><th class="l stick"></th><th class="stick2" style="left:118px"></th><th class="stick2 sep" style="left:170px"></th>'+
-   '<th colspan="'+(RET.length+ROAS.length)+'">Retention & ROAS values</th>'+
-   '<th colspan="'+(DECAY.length+MULT.length)+'" class="sep">Growth &amp; decay ratios</th></tr>'+
+   '<th colspan="'+RET.length+'" class="sep">Retention</th>'+
+   '<th colspan="'+DECAY.length+'" class="sep">Ret decay</th>'+
+   '<th colspan="'+ROAS.length+'" class="sep">ROAS</th>'+
+   '<th colspan="'+MULT.length+'">ROAS growth</th></tr>'+
    '<tr><th class="l stick">Week</th><th class="stick2" style="left:118px">Scn</th><th class="stick2 sep" style="left:170px">Spend</th>'+
-   RET.map(c=>'<th>'+c[1]+'</th>').join('')+ROAS.map(c=>'<th>'+c[1]+'</th>').join('')+
-   DECAY.map(c=>'<th>'+c[1]+'</th>').join('')+MULT.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
+   RET.map((c,i)=>'<th'+(i===RET.length-1?' class="sep"':'')+'>'+c[1]+'</th>').join('')+
+   DECAY.map((c,i)=>'<th'+(i===DECAY.length-1?' class="sep"':'')+'>'+c[1]+'</th>').join('')+
+   ROAS.map((c,i)=>'<th'+(i===ROAS.length-1?' class="sep"':'')+'>'+c[1]+'</th>').join('')+
+   MULT.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>';
 }
 
 let SUM={};
@@ -4366,11 +4382,11 @@ function render(){
   /* target rows */
   ['S1','S2','S3'].forEach((s,i)=>{const so=obj(S[s]);const tr=document.createElement('tr');tr.className='tgt'+(i===2?' tgtend':'');
     let html='<td class="l stick lab" style="background:var(--purpbg)">'+s+' <small>TARGET</small></td><td class="stick2" style="left:118px;background:var(--purpbg);text-align:center">·</td><td class="stick2 sep" style="left:170px;background:var(--purpbg)">·</td>';
-    [...RET,...ROAS,...DECAY,...MULT].forEach(c=>{const val=so[c[0]];const dec=(DECAY.concat(MULT)).find(x=>x[0]===c[0])?2:1;html+='<td>'+val.toFixed(dec)+'</td>';});
+    [...RET,...DECAY,...ROAS,...MULT].forEach(c=>{const val=so[c[0]];const dec=(DECAY.concat(MULT)).find(x=>x[0]===c[0])?2:1;html+='<td>'+val.toFixed(dec)+'</td>';});
     tr.innerHTML=html;body.appendChild(tr);});
   /* cohort rows */
   let sumD=0,cntT=0,n=0,sd1=0,sd7=0,sd28=0;
-  keys.forEach(key=>{const e=h[key];const o=blended?e.obsBlended:VIEW==='adjust'?e.obsAdjust:e.obs;if(!o)return;
+  keys.forEach(key=>{const e=h[key];const o=blended?e.obsBlended:e.obs;if(!o)return;
     const wk=e.wk||key,sc=matchScn(o.d1r,o.d7r,S),so=obj(S[sc]),p=project(o,so,cf,DAMP,RW);
     if(blended&&e.obsAdjust){const oC=e.obsAdjust,pC=project(oC,obj(S[matchScn(oC.d1r,oC.d7r,S)]),cf,DAMP,RW);
       let bl=o.d7,cm=oC.d7;if(o.d28mat&&oC.d28mat&&oC.d28>0){bl=o.d28;cm=oC.d28;}if(o.d60mat&&oC.d60mat&&oC.d60>0){bl=o.d60;cm=oC.d60;}if(o.d90mat&&oC.d90mat&&oC.d90>0){bl=o.d90;cm=oC.d90;}
@@ -4382,6 +4398,9 @@ function render(){
     html+=cell(o.d1r,band(o.d1r,so.d1r,B));
     html+=cell(o.d7r,band(o.d7r,so.d7r,B));
     html+=cell(p.d28r,(o.d28mat&&!p.d28rProjected)?band(p.d28r,so.d28r,B):'b');
+    /* ret decay */
+    html+=cell(o.d7r/o.d1r,band(o.d7r/o.d1r,so.dd71,RB),2);
+    html+=cell(p.dd287,(o.d28mat&&!p.d28rProjected)?band(p.dd287,so.dd287,RB):'b',2);
     /* roas */
     html+=cell(o.d0,band(o.d0,so.d0,B));
     html+=cell(o.d7,band(o.d7,so.d7,B));
@@ -4389,10 +4408,7 @@ function render(){
     html+=cell(p.d60,o.d60mat?band(o.d60,so.d60,B):'b');
     html+=cell(p.d90,o.d90mat?band(o.d90,so.d90,B):'b');
     html+=cell(p.d180,o.d180mat?band(o.d180,so.d180,B):'b');
-    /* decay */
-    html+=cell(o.d7r/o.d1r,band(o.d7r/o.d1r,so.dd71,RB),2);
-    html+=cell(p.dd287,(o.d28mat&&!p.d28rProjected)?band(p.dd287,so.dd287,RB):'b',2);
-    /* multiples */
+    /* roas growth */
     html+=cell(o.d7/o.d0,band(o.d7/o.d0,so.m70,RB),2);
     html+=cell(p.m287,o.d28mat?band(o.d28/o.d7,so.m287,RB):'b',2);
     html+=cell(p.m6028,o.d60mat?band(o.d60/o.d28,so.m6028,RB):'b',2);
@@ -4401,7 +4417,8 @@ function render(){
     const tr=document.createElement('tr');tr.innerHTML=html;body.appendChild(tr);});
   if(!body.querySelector('tr:not(.tgt)'))body.insertAdjacentHTML('beforeend','<tr><td colspan="19" class="empty">No data for the '+(VLAB[VIEW]||VIEW)+' view yet.</td></tr>');
   SUM={n,avgD:n?sumD/n:0,tgt:obj(S.S1).d180,hit:n?Math.round(cntT/n*100):0,cntT,cap,s2:obj(S.S2),avgd1:n?sd1/n:0,avgd7:n?sd7/n:0,avgd28:n?sd28/n:0,S:S,blended:blended};
-  renderStats();renderRec();renderPVA(cf);
+  renderStats();renderRec();renderPVA(cf);renderAccuracy(cf);
+  if(jumpNewest){const gs=$('gridscroll');if(gs)gs.scrollTop=gs.scrollHeight;jumpNewest=false;}
 }
 function renderStats(){const s=SUM,ceil=s.cap*(s.s2?s.s2.m6028*s.s2.m9060*s.s2.m18090:0);
   $('stats').innerHTML=
@@ -4446,6 +4463,26 @@ function renderPVA(cf){
     html+='<tr><td class="l week">'+r.wk+'</td><td class="scn">'+r.sc+'</td><td>'+r.chk+'</td><td>'+r.pred.toFixed(1)+'</td><td>'+r.act.toFixed(1)+'</td><td>'+(d>=0?'+':'')+d.toFixed(1)+'</td><td class="'+cls+'">'+(pe>=0?'+':'')+pe.toFixed(0)+'%</td><td>'+r.realized.toFixed(2)+' <span class="sub">'+r.mlbl+'</span></td><td>'+r.assumed.toFixed(2)+'</td></tr>';});
   t.innerHTML=html+'</tbody>';
   $('pvaCount').textContent=rows.length+' checkpoints · showing 5, scroll for the rest';
+}
+
+/* ==== per-cohort prediction accuracy: avg % gap of prediction vs matured actual ==== */
+function renderAccuracy(cf){
+  const h=hist(),rows=[];
+  const keys=Object.keys(h).sort((a,b)=>endDate(h[a].wk||a)-endDate(h[b].wk||b));
+  keys.forEach(key=>{const e=h[key],o=e.obs,pr=e.pred;if(!o||!pr)return;
+    const errs=[],chks=[];
+    ['d28','d60','d90','d180'].forEach(x=>{if(pr[x]!=null&&o[x+'mat']&&o[x]>0&&pr[x]>0){errs.push((o[x]-pr[x])/pr[x]*100);chks.push(x.toUpperCase());}});
+    if(errs.length){rows.push({wk:e.wk||key,avg:errs.reduce((a,b)=>a+b,0)/errs.length,chks});}});
+  const t=$('accuracy');
+  if(!rows.length){t.innerHTML='<tr><td class="empty">No cohort has matured past its prediction yet.</td></tr>';return;}
+  rows.reverse();
+  const overall=rows.reduce((a,b)=>a+b.avg,0)/rows.length;
+  let html='<thead><tr><th class="l">Week</th><th>Checkpoints</th><th>ROAS off</th></tr></thead><tbody>';
+  rows.forEach(r=>{const cls=r.avg>2?'g':r.avg<-2?'r':'y';
+    html+='<tr><td class="l week">'+r.wk+'</td><td class="sub">'+r.chks.join(' · ')+'</td><td class="'+cls+'" style="font-weight:700">'+(r.avg>=0?'+':'')+r.avg.toFixed(1)+'%</td></tr>';});
+  html+='</tbody>';
+  t.innerHTML=html;
+  $('accOverall').innerHTML='across '+rows.length+' cohorts we are on average '+(overall>=0?'<b style="color:var(--g)">under</b>-predicting by +'+overall.toFixed(1):'<b style="color:var(--r)">over</b>-predicting by '+overall.toFixed(1))+'% ROAS';
 }
 
 /* ==== ingest CSV ==== */
@@ -4539,7 +4576,7 @@ $('viewToggle').addEventListener('click',toggleView);
 $('loadScn').addEventListener('click',loadScenarioValues);
 $('resetScn').addEventListener('click',resetScenarios);
 $('resetBtn').addEventListener('click',()=>{if(confirm('Clear locally-stored weeks for '+CAMPAIGNS[cur()].label+'? (Committed cohorts.json is unaffected.)')){localStorage.removeItem('hist_'+cur());render();}});
-$('campaign').addEventListener('change',refresh);
+$('campaign').addEventListener('change',()=>{jumpNewest=true;refresh();});
 ['goal','band','rband','d28g','damp','rw'].forEach(id=>$(id).addEventListener('input',render));
 
 (async()=>{try{$('asof').value=new Date().toISOString().slice(0,10);await loadConfig();await loadCohorts();loadCustom();buildCampaignSelect();refresh();}catch(e){console.error('boot',e);try{buildCampaignSelect();refresh();}catch(e2){document.body.insertAdjacentHTML('beforeend','<p style="color:#e0655c;padding:20px">Failed to load. Open the console for details.</p>');}}})();
