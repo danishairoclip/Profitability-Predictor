@@ -54,9 +54,15 @@ textarea{width:100%;min-height:150px;resize:vertical;line-height:1.5}
 .scroll{overflow:auto;max-height:none}
 .gridscroll{overflow:auto;max-height:470px}
 .gridscroll::-webkit-scrollbar{width:10px;height:10px}.gridscroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
-#grid thead .grp th{position:sticky;top:0;background:var(--panel);z-index:4}
-#grid thead tr:not(.grp) th{position:sticky;top:26px;background:var(--panel);z-index:4}
+#grid thead .grp th{position:sticky;top:0;height:26px;background:var(--panel);z-index:4}
+#grid thead tr:not(.grp) th{position:sticky;top:26px;height:30px;background:var(--panel);z-index:4}
 #grid thead .stick,#grid thead .stick2{z-index:6}
+#grid tbody tr.tgt{height:32px}
+#grid tbody tr.tgt td{position:sticky;background:var(--purpbg);z-index:3}
+#grid tbody tr.tgt.t1 td{top:56px}
+#grid tbody tr.tgt.t2 td{top:88px}
+#grid tbody tr.tgt.t3 td{top:120px}
+#grid tbody tr.tgt .stick,#grid tbody tr.tgt .stick2{z-index:5}
 table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12.5px}
 thead .grp th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:10px 0 4px;border-bottom:1px solid var(--line)}
 th,td{padding:9px 12px;text-align:right;white-space:nowrap}
@@ -161,8 +167,8 @@ td.b sup{font-style:normal;font-size:8px;opacity:.7}
 </div>
 
 <div class="pva card" style="margin-top:16px">
-  <h3>Prediction accuracy by cohort — how far off is each one?</h3>
-  <p class="note">Average gap between our prediction and the matured actual across D28 / D60 / D90 / D180. <b style="color:var(--g)">Green</b> = the cohort beat our prediction (we under-predicted), <b style="color:var(--r)">red</b> = it fell short (we over-predicted), yellow = on the mark. Overall: <span id="accOverall"></span></p>
+  <h3>Prediction accuracy by checkpoint — how far off are we?</h3>
+  <p class="note">For each checkpoint, the average % gap between our prediction and the matured actual, pooled across every cohort that has reached it. <b style="color:var(--g)">Green</b> = actuals beat our prediction (under-predicted), <b style="color:var(--r)">red</b> = fell short (over-predicted), yellow = on the mark. Overall: <span id="accOverall"></span></p>
   <div class="pvascroll" style="max-height:none"><table class="pvatable" id="accuracy"></table></div>
 </div>
 </div>
@@ -4380,7 +4386,7 @@ function render(){
   const vt={applovin:'AppLovin paid vs '+CAMPAIGNS[cur()].d180.be+' break-even',adjust:'Adjust paid vs '+CAMPAIGNS[cur()].d180.be+' break-even',blended:'Adjust BLENDED (paid + organic) vs 100 break-even'};
   $('basisTag').textContent='· '+(vt[VIEW]||CAMPAIGNS[cur()].basis);
   /* target rows */
-  ['S1','S2','S3'].forEach((s,i)=>{const so=obj(S[s]);const tr=document.createElement('tr');tr.className='tgt'+(i===2?' tgtend':'');
+  ['S1','S2','S3'].forEach((s,i)=>{const so=obj(S[s]);const tr=document.createElement('tr');tr.className='tgt t'+(i+1)+(i===2?' tgtend':'');
     let html='<td class="l stick lab" style="background:var(--purpbg)">'+s+' <small>TARGET</small></td><td class="stick2" style="left:118px;background:var(--purpbg);text-align:center">·</td><td class="stick2 sep" style="left:170px;background:var(--purpbg)">·</td>';
     [...RET,...DECAY,...ROAS,...MULT].forEach(c=>{const val=so[c[0]];const dec=(DECAY.concat(MULT)).find(x=>x[0]===c[0])?2:1;html+='<td>'+val.toFixed(dec)+'</td>';});
     tr.innerHTML=html;body.appendChild(tr);});
@@ -4465,24 +4471,21 @@ function renderPVA(cf){
   $('pvaCount').textContent=rows.length+' checkpoints · showing 5, scroll for the rest';
 }
 
-/* ==== per-cohort prediction accuracy: avg % gap of prediction vs matured actual ==== */
+/* ==== prediction accuracy: one line per checkpoint, pooled across every matured cohort ==== */
 function renderAccuracy(cf){
-  const h=hist(),rows=[];
-  const keys=Object.keys(h).sort((a,b)=>endDate(h[a].wk||a)-endDate(h[b].wk||b));
-  keys.forEach(key=>{const e=h[key],o=e.obs,pr=e.pred;if(!o||!pr)return;
-    const errs=[],chks=[];
-    ['d28','d60','d90','d180'].forEach(x=>{if(pr[x]!=null&&o[x+'mat']&&o[x]>0&&pr[x]>0){errs.push((o[x]-pr[x])/pr[x]*100);chks.push(x.toUpperCase());}});
-    if(errs.length){rows.push({wk:e.wk||key,avg:errs.reduce((a,b)=>a+b,0)/errs.length,chks});}});
-  const t=$('accuracy');
-  if(!rows.length){t.innerHTML='<tr><td class="empty">No cohort has matured past its prediction yet.</td></tr>';return;}
-  rows.reverse();
-  const overall=rows.reduce((a,b)=>a+b.avg,0)/rows.length;
-  let html='<thead><tr><th class="l">Week</th><th>Checkpoints</th><th>ROAS off</th></tr></thead><tbody>';
-  rows.forEach(r=>{const cls=r.avg>2?'g':r.avg<-2?'r':'y';
-    html+='<tr><td class="l week">'+r.wk+'</td><td class="sub">'+r.chks.join(' · ')+'</td><td class="'+cls+'" style="font-weight:700">'+(r.avg>=0?'+':'')+r.avg.toFixed(1)+'%</td></tr>';});
-  html+='</tbody>';
-  t.innerHTML=html;
-  $('accOverall').innerHTML='across '+rows.length+' cohorts we are on average '+(overall>=0?'<b style="color:var(--g)">under</b>-predicting by +'+overall.toFixed(1):'<b style="color:var(--r)">over</b>-predicting by '+overall.toFixed(1))+'% ROAS';
+  const h=hist();const agg={d28:[],d60:[],d90:[],d180:[]};
+  Object.keys(h).forEach(key=>{const e=h[key],o=e.obs,pr=e.pred;if(!o||!pr)return;
+    ['d28','d60','d90','d180'].forEach(x=>{if(pr[x]!=null&&o[x+'mat']&&o[x]>0&&pr[x]>0)agg[x].push((o[x]-pr[x])/pr[x]*100);});});
+  const t=$('accuracy');const LAB={d28:'D28',d60:'D60',d90:'D90',d180:'D180'};
+  let html='<thead><tr><th class="l">Checkpoint</th><th>Cohorts</th><th>ROAS off</th></tr></thead><tbody>',any=false;
+  ['d28','d60','d90','d180'].forEach(x=>{const a=agg[x];
+    if(a.length){any=true;const avg=a.reduce((s,v)=>s+v,0)/a.length,cls=avg>2?'g':avg<-2?'r':'y';
+      html+='<tr><td class="l" style="font-weight:700">'+LAB[x]+'</td><td class="sub">'+a.length+' cohorts</td><td class="'+cls+'" style="font-weight:700;font-size:14px">'+(avg>=0?'+':'')+avg.toFixed(1)+'%</td></tr>';}
+    else html+='<tr><td class="l" style="font-weight:700">'+LAB[x]+'</td><td class="sub">not matured yet</td><td style="color:var(--muted2)">—</td></tr>';});
+  t.innerHTML=html+'</tbody>';
+  if(any){const all=[].concat(agg.d28,agg.d60,agg.d90,agg.d180);const ov=all.reduce((s,v)=>s+v,0)/all.length;
+    $('accOverall').innerHTML='across all matured checkpoints we are on average '+(ov>=0?'<b style="color:var(--g)">under</b>-predicting by +'+ov.toFixed(1):'<b style="color:var(--r)">over</b>-predicting by '+ov.toFixed(1))+'% ROAS';}
+  else $('accOverall').textContent='nothing has matured past its prediction yet';
 }
 
 /* ==== ingest CSV ==== */
