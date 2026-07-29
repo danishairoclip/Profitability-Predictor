@@ -64,10 +64,14 @@ textarea{width:100%;min-height:150px;resize:vertical;line-height:1.5}
 #grid tbody tr.tgt.t3 td{top:120px}
 #grid tbody tr.tgt .stick,#grid tbody tr.tgt .stick2{z-index:5}
 table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12.5px}
-thead .grp th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:10px 0 4px;border-bottom:1px solid var(--line)}
+thead .grp th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);font-weight:700;padding:10px 0 4px;border-bottom:1px solid var(--line);text-align:center}
 th,td{padding:9px 12px;text-align:right;white-space:nowrap}
 th{color:var(--muted);font-weight:600;font-size:11px;border-bottom:1px solid var(--line)}
 th.l,td.l{text-align:left}
+#grid th,#grid td{text-align:center}
+#grid .l{text-align:left}
+#grid tbody td{font-weight:600}
+#grid thead th{font-weight:700}
 .stick{position:sticky;left:0;background:var(--panel);z-index:2}
 .stick2{position:sticky;background:var(--panel);z-index:2}
 tbody td{border-bottom:1px solid rgba(34,43,58,.5)}
@@ -4359,7 +4363,7 @@ function toggleView(){VIEW=VIEWS[(VIEWS.indexOf(VIEW)+1)%VIEWS.length];$('viewTo
 /* ==== columns: retention grouped first, then ROAS, then decay+multiples ==== */
 const RET=[['d1r','D1 Ret'],['d7r','D7 Ret'],['d28r','D28 Ret']];
 const ROAS=[['d0','D0'],['d7','D7'],['d28','D28'],['d60','D60'],['d90','D90'],['d180','D180']];
-const DECAY=[['dd71','D7/D1'],['dd287','D28/D7r']];
+const DECAY=[['dd71','D7/D1'],['dd287','D28/D7']];
 const MULT=[['m70','D7/D0'],['m287','D28/D7'],['m6028','D60/D28'],['m9060','D90/D60'],['m18090','D180/D90']];
 
 function buildHead(){
