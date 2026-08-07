@@ -44,7 +44,7 @@
       "retentionWeight": 0.5
     },
     "JS_IOS": {
-      "label": "JS_iOS_AD",
+      "label": "JSD_iOS_AD",
       "basis": "AppLovin paid — retention-driven to D180 BE 88",
       "scenarios": {
         "S1": [
