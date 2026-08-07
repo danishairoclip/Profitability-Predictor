@@ -44,7 +44,7 @@
       "retentionWeight": 0.5
     },
     "JS_IOS": {
-      "label": "JSD_iOS_AD",
+      "label": "JS_iOS_AD",
       "basis": "AppLovin paid — retention-driven to D180 BE 88",
       "scenarios": {
         "S1": [
@@ -79,6 +79,48 @@
           64.24,
           72.87,
           88
+        ]
+      },
+      "d28goal": 47,
+      "sensitivity": 0.6,
+      "retentionWeight": 0.5
+    },
+    "JSD_IOS_APPLOVIN": {
+      "label": "JSD_iOS_AD",
+      "basis": "AppLovin paid — retention-driven to D180 BE 90.9 (organic ~10%)",
+      "scenarios": {
+        "S1": [
+          24.43,
+          30,
+          45.75,
+          11.54,
+          63.58,
+          5.52,
+          74.64,
+          79.17,
+          90.9
+        ],
+        "S2": [
+          19.1,
+          35,
+          38.47,
+          13.47,
+          57.51,
+          6.44,
+          70.03,
+          77.04,
+          90.9
+        ],
+        "S3": [
+          15.5,
+          40,
+          33.23,
+          15.39,
+          52.84,
+          7.36,
+          66.36,
+          75.27,
+          90.9
         ]
       },
       "d28goal": 47,
@@ -128,7 +170,7 @@
       "retentionWeight": 0.5
     },
     "TH_ANDROID_BLD": {
-      "label": "TH_Android_BLD",
+      "label": "TH_ANDROID_BLD",
       "basis": "AppLovin paid — borrowed JS_AND ratios, retention re-anchored (D180 BE 92.6, organic 8%)",
       "scenarios": {
         "S1": [
@@ -170,7 +212,7 @@
       "retentionWeight": 0.5
     },
     "TH_UNITY_COMBO_IOS": {
-      "label": "TH_Unity_Combo_iOS",
+      "label": "TH_iOS_UNITY_COMBO",
       "src": "Unity",
       "basis": "Unity paid — no organic (D180 BE 100)",
       "scenarios": {
@@ -213,7 +255,7 @@
       "retentionWeight": 0.5
     },
     "TH_UNITY_AD_ANDROID": {
-      "label": "TH_Unity_AD_Android",
+      "label": "TH_ANDROID_UNITY_AD",
       "src": "Unity",
       "basis": "Unity paid — no organic (D180 BE 100)",
       "scenarios": {
@@ -256,7 +298,7 @@
       "retentionWeight": 0.5
     },
     "TH_UNITY_COMBO_ANDROID": {
-      "label": "TH_Unity_Combo_Android",
+      "label": "TH_ANDROID_UNITY_COMBO",
       "src": "Unity",
       "basis": "Unity paid — no organic (D180 BE 100)",
       "scenarios": {
