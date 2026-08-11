@@ -248,12 +248,15 @@ function dkey(wk){const m=(''+wk).match(/(\d{4}-\d{2}-\d{2})\D+(\d{4}-\d{2}-\d{2
 function endDate(wk){const m=(''+wk).match(/(\d{4}-\d{2}-\d{2})\D+(\d{4}-\d{2}-\d{2})/);return m?Date.parse(m[2]):(Date.parse(''+wk)||0);}
 function dedupe(arr){const out={};for(const e of arr){const k=dkey(e.wk||'');if(!out[k]||endDate(e.wk)>=endDate(out[k].wk))out[k]=e;}return out;}
 function _mat(e){const o=(e&&e.obs)||{};return (o.d28!=null?1:0)+(o.d60!=null?1:0)+(o.d90!=null?1:0)+(o.d180!=null?1:0);}
+function _predCount(p){p=p||{};return (p.d28!=null?1:0)+(p.d60!=null?1:0)+(p.d90!=null?1:0)+(p.d180!=null?1:0);}
 function histFor(k){
   const b=dedupe(Object.values(BASE[k]||{})),l=dedupe(Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}')));
   const out=Object.assign({},b);
   for(const key in l){const le=l[key],be=out[key];
-    /* keep whichever copy of the week is more matured; tie -> local (freshest paste) */
-    if(!be||_mat(le)>=_mat(be))out[key]=le;}
+    if(!be){out[key]=le;continue;}
+    const obsWin=_mat(le)>=_mat(be)?le:be;          /* matured actuals from the fuller copy */
+    const pred=_predCount(be.pred)>=_predCount(le.pred)?be.pred:le.pred; /* keep the frozen prediction */
+    out[key]=Object.assign({},obsWin,{pred});}
   return out;
 }
 const hist=()=>histFor(cur());
