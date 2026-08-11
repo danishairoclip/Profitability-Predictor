@@ -247,7 +247,15 @@ function retw(){const v=parseFloat($('rw').value);return isNaN(v)?0.5:v;}
 function dkey(wk){const m=(''+wk).match(/(\d{4}-\d{2}-\d{2})\D+(\d{4}-\d{2}-\d{2})/);return m?m[1]+'_'+m[2]:(''+wk).replace(/\s+/g,'');}
 function endDate(wk){const m=(''+wk).match(/(\d{4}-\d{2}-\d{2})\D+(\d{4}-\d{2}-\d{2})/);return m?Date.parse(m[2]):(Date.parse(''+wk)||0);}
 function dedupe(arr){const out={};for(const e of arr){const k=dkey(e.wk||'');if(!out[k]||endDate(e.wk)>=endDate(out[k].wk))out[k]=e;}return out;}
-function histFor(k){const b=dedupe(Object.values(BASE[k]||{}));const l=dedupe(Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}')));return Object.assign({},b,l);}
+function _mat(e){const o=(e&&e.obs)||{};return (o.d28!=null?1:0)+(o.d60!=null?1:0)+(o.d90!=null?1:0)+(o.d180!=null?1:0);}
+function histFor(k){
+  const b=dedupe(Object.values(BASE[k]||{})),l=dedupe(Object.values(JSON.parse(localStorage.getItem('hist_'+k)||'{}')));
+  const out=Object.assign({},b);
+  for(const key in l){const le=l[key],be=out[key];
+    /* keep whichever copy of the week is more matured; tie -> local (freshest paste) */
+    if(!be||_mat(le)>=_mat(be))out[key]=le;}
+  return out;
+}
 const hist=()=>histFor(cur());
 
 /* ==== model ==== */
