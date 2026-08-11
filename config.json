@@ -1,89 +1,91 @@
 {
-  "updated": "2026-07-28",
+  "updated": "2026-08-11",
   "campaigns": {
     "TH_IOS": {
       "label": "TH_IOS_BLD",
       "basis": "AppLovin paid — retention-driven to D180 BE 87.5",
       "scenarios": {
         "S1": [
-          23.09,
+          19.86,
           30,
-          42.53,
+          38.28,
           11.14,
-          57.92,
+          56.51,
           5.24,
-          68.26,
-          73.71,
+          69.04,
+          74.31,
           87.5
         ],
         "S2": [
-          18.05,
+          16.13,
           35,
-          35.76,
+          33.07,
           13,
-          52.39,
+          51.92,
           6.11,
-          64.04,
-          71.72,
+          65.42,
+          72.61,
           87.5
         ],
         "S3": [
-          14.66,
+          13.47,
           40,
-          30.89,
+          29.13,
           14.86,
-          48.13,
+          48.24,
           6.99,
-          60.67,
-          70.08,
+          62.43,
+          71.17,
           87.5
         ]
       },
-      "d28goal": 45,
+      "d28goal": 52,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "JS_IOS": {
       "label": "JS_iOS_AD",
       "basis": "AppLovin paid — retention-driven to D180 BE 88",
       "scenarios": {
         "S1": [
-          23.65,
+          22.54,
           30,
-          44.29,
+          43.02,
           11.54,
-          61.55,
+          59.46,
           5.52,
-          72.26,
-          76.64,
+          70.91,
+          76.32,
           88
         ],
         "S2": [
-          18.49,
+          18.3,
           35,
-          37.24,
+          37.16,
           13.47,
-          55.68,
+          54.62,
           6.44,
-          67.8,
+          67.19,
           74.58,
           88
         ],
         "S3": [
-          15.01,
+          15.29,
           40,
-          32.17,
+          32.73,
           15.39,
-          51.15,
+          50.75,
           7.36,
-          64.24,
-          72.87,
+          64.12,
+          73.1,
           88
         ]
       },
-      "d28goal": 47,
+      "d28goal": 55,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "JSD_IOS_APPLOVIN": {
       "label": "JSD_iOS_AD",
@@ -125,91 +127,94 @@
       },
       "d28goal": 47,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "JS_AND": {
       "label": "JS_ANDROID_AD",
       "basis": "AppLovin paid — retention-driven to D180 BE 97",
       "scenarios": {
         "S1": [
-          29.99,
+          31.68,
           25,
-          52.39,
+          55.08,
           9.15,
-          67.76,
+          73.22,
           3.9,
-          76.76,
-          82.21,
+          84.02,
+          88.3,
           97
         ],
         "S2": [
-          22.19,
+          24.77,
           30,
-          42.38,
+          46.32,
           10.98,
-          59.94,
+          66.24,
           4.68,
-          70.99,
-          79.51,
+          78.82,
+          85.92,
           97
         ],
         "S3": [
-          17.35,
+          20.12,
           35,
-          35.64,
+          40.01,
           12.81,
-          54.22,
+          60.85,
           5.46,
-          66.6,
-          77.36,
+          74.68,
+          83.95,
           97
         ]
       },
-      "d28goal": 60,
+      "d28goal": 66,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "TH_ANDROID_BLD": {
       "label": "TH_ANDROID_BLD",
       "basis": "AppLovin paid — borrowed JS_AND ratios, retention re-anchored (D180 BE 92.6, organic 8%)",
       "scenarios": {
         "S1": [
-          28.63,
+          32.47,
           30.0,
-          50.01,
+          52.81,
           8.39,
-          64.69,
+          69.01,
           4.02,
-          73.28,
-          78.48,
+          78.96,
+          82.69,
           92.6
         ],
         "S2": [
-          21.18,
+          26.37,
           35.0,
-          40.46,
+          45.61,
           9.78,
-          57.22,
+          63.4,
           4.7,
-          67.77,
-          75.9,
+          74.82,
+          80.8,
           92.6
         ],
         "S3": [
-          16.56,
+          22.02,
           40.0,
-          34.02,
+          40.18,
           11.18,
-          51.76,
+          58.91,
           5.37,
-          63.58,
-          73.85,
+          71.4,
+          79.2,
           92.6
         ]
       },
-      "d28goal": 62,
+      "d28goal": 63,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.1
     },
     "TH_UNITY_COMBO_IOS": {
       "label": "TH_iOS_UNITY_COMBO",
@@ -252,7 +257,8 @@
       },
       "d28goal": 48,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "TH_UNITY_AD_ANDROID": {
       "label": "TH_ANDROID_UNITY_AD",
@@ -295,7 +301,8 @@
       },
       "d28goal": 60,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     },
     "TH_UNITY_COMBO_ANDROID": {
       "label": "TH_ANDROID_UNITY_COMBO",
@@ -338,7 +345,8 @@
       },
       "d28goal": 60,
       "sensitivity": 0.6,
-      "retentionWeight": 0.5
+      "retentionWeight": 0.5,
+      "d360": 1.12
     }
   }
 }
